@@ -1,0 +1,129 @@
+---
+title: "HPC_Assignment1"
+author: "HPC"
+date: "7/6/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Peer-graded Assignment: Course Project 1
+
+##First step: Create the dataset
+
+This segment has the code for reading in the dataset and processing the data.
+
+```{r}
+library(readr)
+activity <- read_csv("activity.csv")
+str(activity)
+```
+
+## Second step: Summary statistics for the data
+
+What is the mean and median of total number of steps taken per day?
+
+```{r}
+library(dplyr)
+activity_daily <- activity %>%
+                    group_by(date) %>%
+                    summarise(daily_steps = sum(steps))
+summary(activity_daily)
+mean_daily <- mean(activity_daily$daily_steps, na.rm=TRUE)
+median_daily <- median(activity_daily$daily_steps, na.rm=TRUE)
+```
+
+The mean of the total number of steps taken per day is `mean_daily`.
+The median of the total number of steps taken per day is `median_daily`.
+
+And here is the histogram:
+
+```{r}
+library(ggplot2)
+ggplot(activity_daily, aes(x=date, y=daily_steps)) + geom_bar(stat='identity')
+
+```
+
+And here is a plot with the daily activity pattern:
+
+```{r}
+activity_avgday <- activity %>%
+                    group_by(interval) %>%
+                    summarise(interval_steps = mean(steps, na.rm = TRUE))
+ggplot(activity_avgday, mapping = aes(x = interval, y = interval_steps)) + geom_line()
+
+
+```
+
+
+##Third step: Inputing missing values
+
+Here we diagnose the missing values problem and create a new dataset that is equal to the original dataset but with the missing data filled in.
+
+```{r}
+count_NAs <- sum(is.na(activity_daily$daily_steps))
+```
+
+There exist `count_NAs` missing values.
+To fix the issue, we will input mean values where there is a missing value.
+Afterwards, we calculate the mean, median and plot an histogram.
+
+
+```{r}
+library(tidyr)
+activity_daily2 <- activity_daily %>%
+                    replace_na(list(daily_steps=mean_daily))
+```
+
+```{r}
+summary(activity_daily2)
+mean_daily_2 <- mean(activity_daily2$daily_steps, na.rm=TRUE)
+median_daily_2 <- median(activity_daily2$daily_steps, na.rm=TRUE)
+
+ggplot(activity_daily2, aes(x=date, y=daily_steps)) + geom_bar(stat='identity')
+
+```
+
+In sum: the strategy used for removing the NAs did not impact the mean but it impacted the median.
+- New mean is `mean_daily_2` same as old mean (`mean_daily`)
+- New median is `median_daily_2` different from old median (`median_daily`)
+
+
+##Fourth step: Activity patterns in weekdays vs weekends
+
+Create the new dataset: 
+
+```{r}
+activity2 <- activity %>%
+                    replace_na(list(steps=mean_daily)) %>%
+                    mutate(weekday = weekdays(date),
+                           weekday_dummy = ifelse(weekday == "Saturday" | weekday == "Sunday", "Weekend", "Weekday"))
+activity2$weekday_dummy <- factor(activity2$weekday_dummy)
+
+str(activity2)
+
+```
+
+Plot the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis).
+
+```{r}
+activity_avgweekday <- activity2 %>%
+                    filter(weekday_dummy == "Weekday") %>%
+                    group_by(interval) %>%
+                    summarise(interval_steps = mean(steps, na.rm = TRUE))
+
+ggplot(activity_avgweekday, mapping = aes(x = interval, y = interval_steps)) + 
+  geom_line()
+
+activity_avgweekend <- activity2 %>%
+                    filter(weekday_dummy == "Weekend") %>%
+                    group_by(interval) %>%
+                    summarise(interval_steps = mean(steps, na.rm = TRUE))
+
+ggplot(activity_avgweekend, mapping = aes(x = interval, y = interval_steps)) + 
+  geom_line()
+
+
+```
